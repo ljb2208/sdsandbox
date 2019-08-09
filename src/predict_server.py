@@ -16,9 +16,13 @@ from io import BytesIO
 import base64
 import datetime
 
+import tensorflow as tf
+
 import numpy as np
 from tensorflow.keras.models import load_model
 from PIL import Image
+
+#import keras.backend.tensorflow_backend as ktf
 
 from tcp_server import IMesgHandler, SimServer
 import conf
@@ -147,8 +151,17 @@ class DonkeySimMsgHandler(IMesgHandler):
     def on_close(self):
         pass
 
+def get_session(gpu_fraction=0.5):
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_fraction,
+        allow_growth=True)
+    return tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
 def go(filename, address, constant_throttle=0, num_cars=1, image_cb=None, rand_seed=None):
+
+    
+
+    sess = get_session()
+    #ktf.set_session(get_session())
 
     model = load_model(filename)
 
