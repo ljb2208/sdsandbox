@@ -3,12 +3,10 @@
 sdsim/Library
 sdsim/log/*
 sdsim/obj
-sdsim/*.sln
-sdsim/*.userprefs
+*.sln
+*.userprefs
 sdsim/Temp
-sdsim/Build
-sdsim/Log
-sdsim/Packages
-sdsim/.vs
 *.csproj
-env
+sdsim/.vs
+sdsim/Build
+dataset

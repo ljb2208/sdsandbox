@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Globalization;
 
 public class PathManager : MonoBehaviour {
 
@@ -42,12 +43,16 @@ public class PathManager : MonoBehaviour {
 
 	public LaneChangeTrainer laneChTrainer;
 
+	public GameObject locationMarkerPrefab;
+
+	public int markerEveryN = 2;
+
 	void Awake () 
 	{
 		if(sameRandomPath)
 			Random.InitState(randSeed);
 
-		InitNewRoad();			
+		InitNewRoad();
 	}
 
 	public void InitNewRoad()
@@ -80,7 +85,20 @@ public class PathManager : MonoBehaviour {
 			laneChTrainer.ModifyPath(ref path);
 		}
 
-		if(doShowPath)
+		if(locationMarkerPrefab != null && path != null)
+		{
+			int iLocId = 0;
+			for(int iN = 0; iN < path.nodes.Count; iN += markerEveryN)
+			{
+				Vector3 np = path.nodes[iN].pos;
+				GameObject go = Instantiate(locationMarkerPrefab, np, Quaternion.identity) as GameObject;
+				go.transform.parent = this.transform;
+				go.GetComponent<LocationMarker>().id = iLocId;
+				iLocId++;
+			}
+		}
+
+		if(doShowPath && path != null)
 		{
 			for(int iN = 0; iN < path.nodes.Count; iN++)
 			{
@@ -129,7 +147,7 @@ public class PathManager : MonoBehaviour {
 
 	void MakePointPath()
 	{
-		string filename = "thunder_path";
+		string filename = pathToLoad;
 
 		TextAsset bindata = Resources.Load(filename) as TextAsset;
 
@@ -152,9 +170,9 @@ public class PathManager : MonoBehaviour {
 
 			if (tokens.Length != 3)
 				continue;
-			np.x = float.Parse(tokens[0]);
-			np.y = float.Parse(tokens[1]) + offsetY;
-			np.z = float.Parse(tokens[2]);
+			np.x = float.Parse(tokens[0], CultureInfo.InvariantCulture.NumberFormat);
+			np.y = float.Parse(tokens[1], CultureInfo.InvariantCulture.NumberFormat) + offsetY;
+			np.z = float.Parse(tokens[2], CultureInfo.InvariantCulture.NumberFormat);
 			PathNode p = new PathNode();
 			p.pos = np;
 			path.nodes.Add(p);
@@ -240,7 +258,7 @@ public class PathManager : MonoBehaviour {
 			p.pos = np;
 			path.nodes.Add(p);
 
-			float t = Random.Range(-1.0f * turnInc, turnInc);
+			float t = UnityEngine.Random.Range(-1.0f * turnInc, turnInc);
 
 			turn += t;
 

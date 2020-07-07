@@ -80,7 +80,7 @@ public class Logger : MonoBehaviour {
     float timeSinceLastCapture = 0.0f;
 
     //We can output our logs in the style that matched the output from the shark robot car platform - github/tawnkramer/shark
-    public bool SharkStyle = true;
+    public bool SharkStyle = false;
 
 	//We can output our logs in the style that matched the output from the udacity simulator
 	public bool UdacityStyle = false;
@@ -89,7 +89,7 @@ public class Logger : MonoBehaviour {
     public bool DonkeyStyle = false;
 
     //Tub style as prefered by Donkey2
-    public bool DonkeyStyle2 = false;
+    public bool DonkeyStyle2 = true;
 
     public Text logDisplay;
 
@@ -192,8 +192,8 @@ public class Logger : MonoBehaviour {
             {
                 DonkeyRecord mjson = new DonkeyRecord();
                 float steering = car.GetSteering() / car.GetMaxSteering();
-                float throttle = car.GetThrottle() * 10.0f;
-                int loc = 0;
+                float throttle = car.GetThrottle();
+                int loc = LocationMarker.GetNearestLocMarker(carObj.transform.position);
 
                 //training code like steering clamped between -1, 1
                 steering = Mathf.Clamp(steering, -1.0f, 1.0f);
@@ -256,7 +256,7 @@ public class Logger : MonoBehaviour {
 
     string GetDonkeyStyleImageFilename()
     {
-        float steering = car.GetSteering() / car.GetMaxSteering();
+        float steering = car.GetSteering() / 25.0f;
         float throttle = car.GetThrottle();
         return GetLogPath() + string.Format("frame_{0,6:D6}_ttl_{1}_agl_{2}_mil_0.0.jpg", 
             frameCounter, throttle, steering);
@@ -264,7 +264,7 @@ public class Logger : MonoBehaviour {
 
 	string GetSharkStyleImageFilename()
     {
-        int steering = (int)(car.GetSteering() / car.GetMaxSteering() * 32768.0f);
+        int steering = (int)(car.GetSteering() / 25.0f * 32768.0f);
         int throttle = (int)(car.GetThrottle() * 32768.0f);
         return GetLogPath() + string.Format("frame_{0,6:D6}_st_{1}_th_{2}.jpg", 
             frameCounter, steering, throttle);
@@ -371,4 +371,3 @@ public class Logger : MonoBehaviour {
 		Shutdown();
 	}
 }
-

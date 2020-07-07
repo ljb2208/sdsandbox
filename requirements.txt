@@ -1,3 +1,5 @@
-tensorflow>=1.12
+numpy
 pillow
-matplotlib
+h5py
+gym
+-e git+https://github.com/tawnkramer/gym-donkeycar.git#egg=gym_donkeycar
