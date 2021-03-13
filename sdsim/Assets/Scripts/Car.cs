@@ -17,11 +17,13 @@ public class Car : MonoBehaviour, ICar {
 	public float requestSteering = 0f;
 
 	public Vector3 acceleration = Vector3.zero;
+	public Vector3 velocity = Vector3.zero;
 	public Vector3 prevVel = Vector3.zero;
 
 	public Vector3 startPos;
 	public Quaternion startRot;
-
+	private Quaternion rotation = Quaternion.identity;
+	private Quaternion gyro = Quaternion.identity;
 	public float length = 1.7f;
 
 	Rigidbody rb;
@@ -39,9 +41,6 @@ public class Car : MonoBehaviour, ICar {
 	//name of the last object we hit.
 	public string last_collision = "none";
 
-	// used by race manager to keep cars at the starting line.
-	public bool blockControls = false;
-
 	// Use this for initialization
 	void Awake () 
 	{
@@ -56,8 +55,9 @@ public class Car : MonoBehaviour, ICar {
 		requestSteering = 0f;
 
 		SavePosRot();
-
-        maxSteer = PlayerPrefs.GetFloat("max_steer", 16.0f);       
+		
+		// had to disable this because PID max steering was affecting the global max_steering
+        // maxSteer = PlayerPrefs.GetFloat("max_steer", 16.0f);
 	}
 
 	public void SavePosRot()
@@ -81,9 +81,9 @@ public class Car : MonoBehaviour, ICar {
     public void SetMaxSteering(float val)
     {
         maxSteer = val;
-
-        PlayerPrefs.SetFloat("max_steer", maxSteer);
-        PlayerPrefs.Save();
+		// had to disable this because PID max steering was affecting the global max_steering
+        // PlayerPrefs.SetFloat("max_steer", maxSteer);
+        // PlayerPrefs.Save();
     }
 
     public float GetMaxSteering()
@@ -147,14 +147,17 @@ public class Car : MonoBehaviour, ICar {
 
 	public Vector3 GetVelocity()
 	{
-		return rb.velocity;
+		return velocity;
 	}
 
 	public Vector3 GetAccel()
 	{
 		return acceleration;
 	}
-
+	public Quaternion GetGyro()
+	{
+	  return gyro;
+  	}
 	public float GetOrient ()
 	{
 		Vector3 dir = transform.forward;
@@ -199,12 +202,6 @@ public class Car : MonoBehaviour, ICar {
 
 	void FixedUpdate()
 	{
-		if(blockControls)
-		{
-			requestSteering = 0.0f;
-			requestTorque = 0.0f;
-		}
-
 		lastSteer = requestSteering;
 		lastAccel = requestTorque;
 
@@ -232,7 +229,11 @@ public class Car : MonoBehaviour, ICar {
 			wc.brakeTorque = 400f * brake;
 		}
 
-		acceleration = rb.velocity - prevVel;
+		prevVel = velocity;
+		velocity = transform.InverseTransformDirection(rb.velocity);
+		acceleration = (velocity - prevVel)/Time.deltaTime;
+		gyro = rb.rotation * Quaternion.Inverse(rotation);
+		rotation = rb.rotation;
 	}
 
 	void FlipUpright()

@@ -95,7 +95,7 @@ public class PIDController : MonoBehaviour {
 
 	public void StartDriving()
 	{
-		if(pm == null || !pm.isActiveAndEnabled || pm.path == null)
+		if(pm == null || !pm.isActiveAndEnabled || pm.carPath == null)
 			return;
 
 		steeringReq = 0f;
@@ -105,7 +105,8 @@ public class PIDController : MonoBehaviour {
 		totalOscilation = 0f;
 		absTotalError = 0f;
 
-		pm.path.ResetActiveSpan();
+		pm.carPath.ResetActiveSpan();
+		pm.carPath.GetClosestSpan(carObj.transform.position);
 		isDriving = true;
 		waitForStill = false;//true;
 
@@ -156,7 +157,7 @@ public class PIDController : MonoBehaviour {
 		}
 
 		//set the activity from the path node.
-		PathNode n = pm.path.GetActiveNode();
+		PathNode n = pm.carPath.GetActiveNode();
 
 		if(n != null && n.activity != null && n.activity.Length > 1)
 		{
@@ -172,17 +173,29 @@ public class PIDController : MonoBehaviour {
 		float velMag = car.GetVelocity().magnitude;
 
 		Vector3 samplePos = car.GetTransform().position + (car.GetTransform().forward * velMag * Kv);
+		
 
-		if(!pm.path.GetCrossTrackErr(samplePos, ref err))
+		(bool, bool) cte_ret = pm.carPath.GetCrossTrackErr(samplePos, ref err);
+		if(cte_ret != (false, false)) // check wether we lapped (in one way or the other)
 		{
             if(looping)
             {
-                pm.path.ResetActiveSpan();
-
-				//Let logger know we looped. Sorry an event would be cleaner.
 				var foundObjects = FindObjectsOfType<Logger>();
-				foreach(var logger in foundObjects)
-					logger.lapCounter++;
+
+                if (cte_ret.Item1) // if we lapped
+				{
+					pm.carPath.ResetActiveSpan();
+					foreach(var logger in foundObjects)
+						logger.lapCounter++;
+				} 					
+					
+				else // if we unlapped
+				{
+					pm.carPath.ResetActiveSpan(false);
+					foreach(var logger in foundObjects)
+						logger.lapCounter--;
+				}
+
             }
 			else if(brakeOnEnd)
 			{
@@ -207,7 +220,7 @@ public class PIDController : MonoBehaviour {
 			return;
 		}
 
-		diffErr = err - prevErr;
+		diffErr = (err - prevErr)/Time.deltaTime;
 
 		steeringReq = (-Kp * err) - (Kd * diffErr) - (Ki * totalError);
 
@@ -236,7 +249,7 @@ public class PIDController : MonoBehaviour {
 		float carPosErr = 0.0f;
 
 		//accumulate error at car, not steering decision point.
-		pm.path.GetCrossTrackErr(car.GetTransform().position, ref carPosErr);
+		pm.carPath.GetCrossTrackErr(car.GetTransform().position, ref carPosErr);
 
 
 		//now get a measure of overall fitness.

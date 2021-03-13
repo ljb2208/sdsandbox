@@ -5,24 +5,29 @@ using UnityEngine.UI;
 using System.Globalization;
 using UnityEngine.SceneManagement;
 using UnityStandardAssets.ImageEffects;
+using UnityEngine.AI;
 
 namespace tk
 {
 
-    public class TcpCarHandler : MonoBehaviour {
+    public class TcpCarHandler : MonoBehaviour
+    {
 
         public GameObject carObj;
         public ICar car;
-
         public PathManager pm;
+        public CarConfig conf;
         public CameraSensor camSensor;
+        public CameraSensor camSensorB;
+        public Lidar lidar;
+        public Odometry[] odom;
         private tk.JsonTcpClient client;
         public Text ai_text;
 
         public float limitFPS = 20.0f;
         float timeSinceLastCapture = 0.0f;
 
-        float steer_to_angle = 16.0f;
+        float steer_to_angle = 25.0f;
 
         float ai_steering = 0.0f;
         float ai_throttle = 0.0f;
@@ -32,6 +37,9 @@ namespace tk
         float time_step = 0.1f;
         bool bResetCar = false;
         bool bExitScene = false;
+        bool extendedTelemetry = true;
+        Vector3 lastTarget = new Vector3(0, 0, 0);
+        double lastDistance = 0.0;
 
         public enum State
         {
@@ -40,24 +48,29 @@ namespace tk
         }
 
         public State state = State.UnConnected;
-        State prev_state = State.UnConnected;
+        // State prev_state = State.UnConnected;
 
         void Awake()
         {
             car = carObj.GetComponent<ICar>();
+            conf = carObj.GetComponent<CarConfig>();
             pm = GameObject.FindObjectOfType<PathManager>();
-
             Canvas canvas = GameObject.FindObjectOfType<Canvas>();
             GameObject go = CarSpawner.getChildGameObject(canvas.gameObject, "AISteering");
             if (go != null)
                 ai_text = go.GetComponent<Text>();
+
+            if (pm != null && carObj != null)
+            {
+                pm.carPath.GetClosestSpan(carObj.transform.position);
+            }
         }
 
         public void Init(tk.JsonTcpClient _client)
         {
             client = _client;
 
-            if(client == null)
+            if (client == null)
                 return;
 
             client.dispatchInMainThread = false; //too slow to wait.
@@ -69,6 +82,8 @@ namespace tk
             client.dispatcher.Register("regen_road", new tk.Delegates.OnMsgRecv(OnRegenRoad));
             client.dispatcher.Register("car_config", new tk.Delegates.OnMsgRecv(OnCarConfig));
             client.dispatcher.Register("cam_config", new tk.Delegates.OnMsgRecv(OnCamConfig));
+            client.dispatcher.Register("cam_config_b", new tk.Delegates.OnMsgRecv(OnCamConfigB));
+            client.dispatcher.Register("lidar_config", new tk.Delegates.OnMsgRecv(OnLidarConfig));
         }
 
         public void Start()
@@ -84,7 +99,7 @@ namespace tk
 
         public void OnDestroy()
         {
-            if(client)
+            if (client != null && client.dispatcher != null)
                 client.dispatcher.Reset();
         }
 
@@ -104,50 +119,125 @@ namespace tk
             json.AddField("steering_angle", car.GetSteering() / steer_to_angle);
             json.AddField("throttle", car.GetThrottle());
             json.AddField("speed", car.GetVelocity().magnitude);
-            json.AddField("image", System.Convert.ToBase64String(camSensor.GetImageBytes()));
+            json.AddField("image", Convert.ToBase64String(camSensor.GetImageBytes()));
+
+            if (camSensorB != null && camSensorB.gameObject.activeInHierarchy)
+            {
+                json.AddField("imageb", Convert.ToBase64String(camSensorB.GetImageBytes()));
+            }
+
+            if (lidar != null && lidar.gameObject.activeInHierarchy)
+            {
+                json.AddField("lidar", lidar.GetOutputAsJson());
+            }
+
+            if (odom.Length > 0)
+            {
+                JSONObject odom_arr = JSONObject.Create();
+
+                foreach (Odometry o in odom)
+                {
+                    odom_arr.Add(o.GetOutputAsJson());
+                }
+
+                json.AddField("odom", odom_arr);
+
+            }
 
             json.AddField("hit", car.GetLastCollision());
             car.ClearLastCollision();
-
-            Transform tm = car.GetTransform();
-            json.AddField("pos_x", tm.position.x);
-            json.AddField("pos_y", tm.position.y);
-            json.AddField("pos_z", tm.position.z);
-
             json.AddField("time", Time.timeSinceLevelLoad);
 
-            if(pm != null)
+            Vector3 accel = car.GetAccel();
+            json.AddField("accel_x", accel.x);
+            json.AddField("accel_y", accel.y);
+            json.AddField("accel_z", accel.z);
+
+            Quaternion gyro = car.GetGyro();
+            json.AddField("gyro_x", gyro.x);
+            json.AddField("gyro_y", gyro.y);
+            json.AddField("gyro_z", gyro.z);
+            json.AddField("gyro_w", gyro.w);
+
+
+            // not intended to use in races, just to train 
+            if (extendedTelemetry)
             {
-                float cte = 0.0f;
-                if(pm.path.GetCrossTrackErr(tm.position, ref cte))
+                Transform tm = car.GetTransform();
+                json.AddField("pos_x", tm.position.x);
+                json.AddField("pos_y", tm.position.y);
+                json.AddField("pos_z", tm.position.z);
+
+                Vector3 velocity = car.GetVelocity();
+                json.AddField("vel_x", velocity.x);
+                json.AddField("vel_y", velocity.y);
+                json.AddField("vel_z", velocity.z);
+
+                if (pm != null)
                 {
+                    float cte = 0.0f;
+                    (bool, bool) cte_ret = pm.carPath.GetCrossTrackErr(tm.position, ref cte);
+
+                    if (cte_ret.Item1 == true)
+                    {
+                        pm.carPath.ResetActiveSpan();
+                    }
+                    else if (cte_ret.Item2 == true)
+                    {
+                        pm.carPath.ResetActiveSpan(false);
+                    }
+
                     json.AddField("cte", cte);
+                    json.AddField("activeNode", pm.carPath.iActiveSpan);
+                    json.AddField("totalNodes", pm.carPath.nodes.Count);
                 }
-                else
+
+                // I don't really know what is the usage of this
+                if (pm.carPath.nodes.Count > 10)
                 {
-                    pm.path.ResetActiveSpan();
-                    json.AddField("cte", 0.0f);
+                    NavMeshHit hit = new NavMeshHit();
+                    Vector3 position = carObj.transform.position;
+                    bool onNavMesh = NavMesh.SamplePosition(position, out hit, 5, NavMesh.AllAreas);
+                    json.AddField("on_road", onNavMesh ? 1 : 0);
+                    if (onNavMesh)
+                    {
+                        Vector3 target = pm.carPath.nodes[(pm.carPath.iActiveSpan + pm.carPath.nodes.Count + pm.carPath.nodes.Count / 3) % (pm.carPath.nodes.Count)].pos;
+                        double currentDistance = pm.carPath.getDistance(position, target);
+                        double distanceToLastTarget = pm.carPath.getDistance(position, this.lastTarget);
+                        if (this.lastTarget.x == 0 || Math.Abs(currentDistance) < 0.001 || Math.Abs(distanceToLastTarget) < 0.001 || Math.Abs(this.lastDistance) < 0.001)
+                        {
+                            this.lastDistance = currentDistance;
+                        }
+                        json.AddField("progress_on_shortest_path", (float)(this.lastDistance - distanceToLastTarget));
+                        this.lastDistance = currentDistance;
+                        this.lastTarget = target;
+                    }
+                    else
+                    {
+                        this.lastTarget = new Vector3(0, 0, 0);
+                        this.lastDistance = 0.0;
+                        json.AddField("progress_on_shortest_path", 0.0f);
+                    }
                 }
             }
-
-            client.SendMsg( json );
+            client.SendMsg(json);
         }
 
         void SendCarLoaded()
         {
-            if(client == null)
+            if (client == null)
                 return;
 
             JSONObject json = new JSONObject(JSONObject.Type.OBJECT);
             json.AddField("msg_type", "car_loaded");
-            client.SendMsg( json );
+            client.SendMsg(json);
             Debug.Log("car loaded.");
         }
 
         float clamp(float val, float low, float high)
         {
             float ret = val;
-            if(val > high)
+            if (val > high)
                 ret = high;
             else if (val < low)
                 ret = low;
@@ -172,10 +262,51 @@ namespace tk
                 car.RequestThrottle(ai_throttle);
                 car.RequestFootBrake(ai_brake);
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Debug.Log(e.ToString());
             }
+        }
+
+        internal void SendStartRaceMsg()
+        {
+            if (client == null)
+                return;
+
+            JSONObject json = new JSONObject(JSONObject.Type.OBJECT);
+            json.AddField("msg_type", "race_start");
+            client.SendMsg(json);
+        }
+
+        internal void SendStopRaceMsg()
+        {
+            if (client == null)
+                return;
+
+            JSONObject json = new JSONObject(JSONObject.Type.OBJECT);
+            json.AddField("msg_type", "race_stop");
+            client.SendMsg(json);
+        }
+
+        internal void SendDQRaceMsg()
+        {
+            if (client == null)
+                return;
+
+            JSONObject json = new JSONObject(JSONObject.Type.OBJECT);
+            json.AddField("msg_type", "DQ");
+            client.SendMsg(json);
+        }
+
+        internal void SendCrosStartRaceMsg(float lap_time)
+        {
+            if (client == null)
+                return;
+
+            JSONObject json = new JSONObject(JSONObject.Type.OBJECT);
+            json.AddField("msg_type", "cross_start");
+            json.AddField("lap_time", lap_time.ToString());
+            client.SendMsg(json);
         }
 
         void OnExitSceneRecv(JSONObject json)
@@ -214,7 +345,7 @@ namespace tk
             TrainingManager train_mgr = GameObject.FindObjectOfType<TrainingManager>();
             PathManager path_mgr = GameObject.FindObjectOfType<PathManager>();
 
-            if(train_mgr != null)
+            if (train_mgr != null)
             {
                 if (turn_increment != 0.0 && path_mgr != null)
                 {
@@ -240,18 +371,18 @@ namespace tk
             string car_name = json.GetField("car_name").str;
             int font_size = 100;
 
-            if(json.GetField("font_size") != null)
+            if (json.GetField("font_size") != null)
                 font_size = int.Parse(json.GetField("font_size").str);
 
-            if(carObj != null && car_name != "Racer Name")
+            if (carObj != null && car_name != "Racer Name")
                 UnityMainThreadDispatcher.Instance().Enqueue(SetCarConfig(body_style, body_r, body_g, body_b, car_name, font_size));
         }
 
         IEnumerator SetCarConfig(string body_style, int body_r, int body_g, int body_b, string car_name, int font_size)
         {
             CarConfig conf = carObj.GetComponent<CarConfig>();
-            
-            if(conf)
+
+            if (conf)
             {
                 conf.SetStyle(body_style, body_r, body_g, body_b, car_name, font_size);
             }
@@ -261,39 +392,94 @@ namespace tk
 
         void OnCamConfig(JSONObject json)
         {
-            float fov       = float.Parse(json.GetField("fov").str, CultureInfo.InvariantCulture.NumberFormat);
-            float offset_x  = float.Parse(json.GetField("offset_x").str, CultureInfo.InvariantCulture.NumberFormat);
-            float offset_y  = float.Parse(json.GetField("offset_y").str, CultureInfo.InvariantCulture.NumberFormat);
-            float offset_z  = float.Parse(json.GetField("offset_z").str, CultureInfo.InvariantCulture.NumberFormat);
-            float rot_x     = float.Parse(json.GetField("rot_x").str, CultureInfo.InvariantCulture.NumberFormat);
-            float fish_eye_x = float.Parse(json.GetField("fish_eye_x").str, CultureInfo.InvariantCulture.NumberFormat);
-            float fish_eye_y = float.Parse(json.GetField("fish_eye_y").str, CultureInfo.InvariantCulture.NumberFormat);
-            int img_w       = int.Parse(json.GetField("img_w").str);
-            int img_h       = int.Parse(json.GetField("img_h").str);
-            int img_d       = int.Parse(json.GetField("img_d").str);
-            string img_enc  = json.GetField("img_enc").str;
-            
-            if(carObj != null)
-                UnityMainThreadDispatcher.Instance().Enqueue(SetCamConfig(fov, offset_x, offset_y, offset_z, rot_x, img_w, img_h, img_d, img_enc, fish_eye_x, fish_eye_y));
+            ParseCamConfig(json, 0);
         }
 
-        IEnumerator SetCamConfig(float fov, float offset_x, float offset_y, float offset_z, float rot_x, 
+        void OnCamConfigB(JSONObject json)
+        {
+            ParseCamConfig(json, 1);
+        }
+
+        void ParseCamConfig(JSONObject json, int iCamera)
+        {
+            float fov = float.Parse(json.GetField("fov").str, CultureInfo.InvariantCulture.NumberFormat);
+            float offset_x = float.Parse(json.GetField("offset_x").str, CultureInfo.InvariantCulture.NumberFormat);
+            float offset_y = float.Parse(json.GetField("offset_y").str, CultureInfo.InvariantCulture.NumberFormat);
+            float offset_z = float.Parse(json.GetField("offset_z").str, CultureInfo.InvariantCulture.NumberFormat);
+            float rot_x = float.Parse(json.GetField("rot_x").str, CultureInfo.InvariantCulture.NumberFormat);
+            float fish_eye_x = float.Parse(json.GetField("fish_eye_x").str, CultureInfo.InvariantCulture.NumberFormat);
+            float fish_eye_y = float.Parse(json.GetField("fish_eye_y").str, CultureInfo.InvariantCulture.NumberFormat);
+            int img_w = int.Parse(json.GetField("img_w").str);
+            int img_h = int.Parse(json.GetField("img_h").str);
+            int img_d = int.Parse(json.GetField("img_d").str);
+            string img_enc = json.GetField("img_enc").str;
+
+            if (carObj != null)
+                UnityMainThreadDispatcher.Instance().Enqueue(SetCamConfig(iCamera, fov, offset_x, offset_y, offset_z, rot_x, img_w, img_h, img_d, img_enc, fish_eye_x, fish_eye_y));
+        }
+
+        IEnumerator SetCamConfig(int iCamera, float fov, float offset_x, float offset_y, float offset_z, float rot_x,
             int img_w, int img_h, int img_d, string img_enc, float fish_eye_x, float fish_eye_y)
         {
-            CameraSensor camSensor = carObj.transform.GetComponentInChildren<CameraSensor>();
-            
-            if(camSensor)
+            CameraSensor cam = null;
+
+            if (iCamera == 0)
+                cam = camSensor;
+            else
             {
-                camSensor.SetConfig(fov, offset_x, offset_y, offset_z, rot_x, img_w, img_h, img_d, img_enc);
+                cam = camSensorB;
 
-                Fisheye fe = camSensor.gameObject.GetComponent<Fisheye>();
+                if (cam != null && !cam.gameObject.activeInHierarchy)
+                {
+                    cam.gameObject.SetActive(true);
+                }
+            }
 
-                if(fe != null && ( fish_eye_x != 0.0f || fish_eye_y != 0.0f) )
+            if (cam)
+            {
+                cam.SetConfig(fov, offset_x, offset_y, offset_z, rot_x, img_w, img_h, img_d, img_enc);
+
+                Fisheye fe = cam.gameObject.GetComponent<Fisheye>();
+
+                if (fe != null && (fish_eye_x != 0.0f || fish_eye_y != 0.0f))
                 {
                     fe.enabled = true;
                     fe.strengthX = fish_eye_x;
                     fe.strengthY = fish_eye_y;
                 }
+            }
+
+            yield return null;
+        }
+
+        void OnLidarConfig(JSONObject json)
+        {
+            float offset_x = float.Parse(json.GetField("offset_x").str, CultureInfo.InvariantCulture.NumberFormat);
+            float offset_y = float.Parse(json.GetField("offset_y").str, CultureInfo.InvariantCulture.NumberFormat);
+            float offset_z = float.Parse(json.GetField("offset_z").str, CultureInfo.InvariantCulture.NumberFormat);
+            float rot_x = float.Parse(json.GetField("rot_x").str, CultureInfo.InvariantCulture.NumberFormat);
+
+            int degPerSweepInc = int.Parse(json.GetField("degPerSweepInc").str);
+            float degAngDown = float.Parse(json.GetField("degAngDown").str, CultureInfo.InvariantCulture.NumberFormat);
+            float degAngDelta = float.Parse(json.GetField("degAngDelta").str, CultureInfo.InvariantCulture.NumberFormat);
+            float maxRange = float.Parse(json.GetField("maxRange").str, CultureInfo.InvariantCulture.NumberFormat);
+            float noise = float.Parse(json.GetField("noise").str, CultureInfo.InvariantCulture.NumberFormat);
+            int numSweepsLevels = int.Parse(json.GetField("numSweepsLevels").str);
+
+
+            if (carObj != null)
+                UnityMainThreadDispatcher.Instance().Enqueue(SetLidarConfig(offset_x, offset_y, offset_z, rot_x, degPerSweepInc, degAngDown, degAngDelta, maxRange, noise, numSweepsLevels));
+        }
+
+        IEnumerator SetLidarConfig(float offset_x, float offset_y, float offset_z, float rot_x,
+            int degPerSweepInc, float degAngDown, float degAngDelta, float maxRange, float noise, int numSweepsLevels)
+        {
+            if (lidar != null)
+            {
+                if (!lidar.gameObject.activeInHierarchy)
+                    lidar.gameObject.SetActive(true);
+
+                lidar.SetConfig(offset_x, offset_y, offset_z, rot_x, degPerSweepInc, degAngDown, degAngDelta, maxRange, noise, numSweepsLevels);
             }
 
             yield return null;
@@ -306,7 +492,7 @@ namespace tk
 
             Debug.Log("got settings");
 
-            if(step_mode == "synchronous")
+            if (step_mode == "synchronous")
             {
                 Debug.Log("setting mode to synchronous");
                 asynchronous = false;
@@ -326,31 +512,29 @@ namespace tk
         }
 
         // Update is called once per frame
-        void Update ()
+        void Update()
         {
-            if(bExitScene)
+            if (bExitScene)
             {
                 bExitScene = false;
                 ExitScene();
             }
-                
-            if(state == State.SendTelemetry)
+
+            if (state == State.SendTelemetry)
             {
                 if (bResetCar)
                 {
                     car.RestorePosRot();
-                    pm.path.ResetActiveSpan();
-                    
-                    if(carObj != null)
-                    {
-                        LapTimer t = carObj.transform.GetComponentInChildren<LapTimer>();
+                    pm.carPath.ResetActiveSpan();
 
-                        if(t != null)
-                        {
-                            t.ResetRace();
-                        }
+                    if (carObj != null)
+                    {
+                        //reset last controls
+                        car.RequestSteering(0.0f);
+                        car.RequestThrottle(0.0f);
+                        car.RequestFootBrake(10.0f);
                     }
-                    
+
                     bResetCar = false;
                 }
 
@@ -363,7 +547,7 @@ namespace tk
                     SendTelemetry();
                 }
 
-                if(ai_text != null)
+                if (ai_text != null)
                     ai_text.text = string.Format("NN: {0} : {1}", ai_steering, ai_throttle);
 
             }
