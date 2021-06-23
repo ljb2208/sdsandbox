@@ -10,9 +10,8 @@ GameObject:
   m_Component:
   - component: {fileID: 1660699142744538748}
   - component: {fileID: 1679471051273188305}
-  - component: {fileID: 526277771936998096}
-  - component: {fileID: 1556879984675806281}
   - component: {fileID: -2074164417792296963}
+  - component: {fileID: 1904078798318189506}
   m_Layer: 0
   m_Name: SplitScreenCamPrefab
   m_TagString: Untagged
@@ -77,22 +76,6 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
---- !u!124 &526277771936998096
-Behaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 934845466505157398}
-  m_Enabled: 0
---- !u!81 &1556879984675806281
-AudioListener:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 934845466505157398}
-  m_Enabled: 0
 --- !u!114 &-2074164417792296963
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -108,3 +91,17 @@ MonoBehaviour:
   target: {fileID: 0}
   approachPosRate: 0.1
   approachRotRate: 0.03
+--- !u!114 &1904078798318189506
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 934845466505157398}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d34136b32b3d9f64fb84431d5f971b9e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lidar: {fileID: 0}
+  car: {fileID: 0}

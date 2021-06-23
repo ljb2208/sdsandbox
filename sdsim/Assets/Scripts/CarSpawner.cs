@@ -198,8 +198,12 @@ public class CarSpawner : MonoBehaviour {
 
     public void UpdateSplitScreenCams()
     {   
+
+        int num_cameras = cars.Count;
+        if (num_cameras > GlobalState.maxSplitScreen) { num_cameras = GlobalState.maxSplitScreen;}
+
         // check if the number of cameras match the number of cars
-        if ((cameras.Count != cars.Count && cars.Count <= GlobalState.maxSplitScreen) && !GlobalState.raceCameras)
+        if ((cameras.Count != cars.Count) && !GlobalState.raceCameras)
         {   
             // remove all cameras in there
             foreach(GameObject splitScreenCamGo in cameras)
@@ -209,20 +213,24 @@ public class CarSpawner : MonoBehaviour {
             cameras.Clear();
 
             // and recreate some new ones
-            for (int i = 0; i < cars.Count; i++)
+            for (int i = 0; i < num_cameras; i++)
             { 
                 AddSplitScreenCam();
             }
         }
 
         // for each camera, update the rect
-        for (int i = 0; i < cameras.Count; i++)
+        for (int i = 0; i < num_cameras; i++)
         {   
             GameObject splitScreenCamGo = cameras[i];
             GameObject car = cars[i];
 
             // set target to the corresponding car
             Camera splitScreenCam = splitScreenCamGo.GetComponent<Camera>();
+            
+            DrawLidar dLidar = splitScreenCamGo.GetComponent<DrawLidar>();
+            dLidar.car = car;
+
             CameraFollow cameraFollow = splitScreenCam.GetComponent<CameraFollow>();
             cameraFollow.target = getChildGameObject(car, "CameraFollowTm").transform;
 

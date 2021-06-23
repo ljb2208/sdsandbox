@@ -28,7 +28,7 @@ public class Car : MonoBehaviour, ICar {
 	private Quaternion gyro = Quaternion.identity;
 	public float length = 1.7f;
 
-	Rigidbody rb;
+	public Rigidbody rb;
 
 	//for logging
 	public float lastSteer = 0.0f;
@@ -39,6 +39,7 @@ public class Car : MonoBehaviour, ICar {
 	public string activity = "keep_lane";
 
     public float maxSteer = 16.0f;
+	public float SteerSpeed = 10000000.0f;
 
 	//name of the last object we hit.
 	public string last_collision = "none";
@@ -214,12 +215,14 @@ public class Car : MonoBehaviour, ICar {
 
 		float throttle = requestTorque * maxTorque;
 		float steerAngle = requestSteering;
+		// float deltaSteerAngle = Mathf.Clamp(steerAngle - wheelColliders[2].steerAngle, -SteerSpeed*Time.fixedDeltaTime, SteerSpeed*Time.fixedDeltaTime);
+		float deltaSteerAngle = steerAngle - wheelColliders[2].steerAngle;
         float brake = requestBrake;
 
 
 		//front two tires.
-		wheelColliders[2].steerAngle = steerAngle;
-		wheelColliders[3].steerAngle = steerAngle;
+		wheelColliders[2].steerAngle += deltaSteerAngle;
+		wheelColliders[3].steerAngle += deltaSteerAngle;
 
 		//four wheel drive at the moment
 		foreach(WheelCollider wc in wheelColliders)
