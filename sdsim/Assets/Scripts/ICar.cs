@@ -36,6 +36,8 @@ public interface ICar
 
 	Vector3 GetVelocity();
 
+	Vector3 GetEulerAngles();
+
 	Vector3 GetAccel();
 
 	Quaternion GetGyro();

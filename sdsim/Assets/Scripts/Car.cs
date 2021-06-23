@@ -19,6 +19,8 @@ public class Car : MonoBehaviour, ICar {
 	public Vector3 acceleration = Vector3.zero;
 	public Vector3 velocity = Vector3.zero;
 	public Vector3 prevVel = Vector3.zero;
+	
+	public Vector3 eulerAngles = Vector3.zero;
 
 	public Vector3 startPos;
 	public Quaternion startRot;
@@ -145,6 +147,11 @@ public class Car : MonoBehaviour, ICar {
 		return 0.0f;
 	}
 
+	public Vector3 GetEulerAngles()
+	{
+		return eulerAngles;
+	}
+
 	public Vector3 GetVelocity()
 	{
 		return velocity;
@@ -229,11 +236,12 @@ public class Car : MonoBehaviour, ICar {
 			wc.brakeTorque = 400f * brake;
 		}
 
-		prevVel = velocity;
+		prevVel = velocity;		
+		eulerAngles = rb.rotation.eulerAngles;
 		velocity = transform.InverseTransformDirection(rb.velocity);
 		acceleration = (velocity - prevVel)/Time.deltaTime;
 		gyro = rb.rotation * Quaternion.Inverse(rotation);
-		rotation = rb.rotation;
+		rotation = rb.rotation;		
 	}
 
 	void FlipUpright()

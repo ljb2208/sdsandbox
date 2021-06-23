@@ -56,6 +56,11 @@ public class UnityStandardCarAdapter : MonoBehaviour, ICar {
 		return rb.velocity;
 	}
 
+	public Vector3 GetEulerAngles()
+	{
+		return rb.rotation.eulerAngles;
+	}
+
 	public Vector3 GetAccel() { return accel; }
 	public Quaternion GetGyro() { return gyro; }
     public void SetMaxSteering(float val)

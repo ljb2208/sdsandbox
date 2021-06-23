@@ -13,6 +13,8 @@ sdsim/Library
 sdsim/Packages
 sdsim/ProjectSettings
 sdsim/Logs
+sdsim/*Player*
+sdsim/donkey_sim*
 /debug.log
 /camera_a.png
 /camera_b.png

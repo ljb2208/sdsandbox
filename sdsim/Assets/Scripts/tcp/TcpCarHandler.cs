@@ -173,6 +173,11 @@ namespace tk
                 json.AddField("vel_y", velocity.y);
                 json.AddField("vel_z", velocity.z);
 
+                Vector3 eulerAngles = car.GetEulerAngles();
+                json.AddField("roll", eulerAngles.z);
+                json.AddField("pitch", eulerAngles.x);
+                json.AddField("yaw", eulerAngles.y);
+
                 if (pm != null)
                 {
                     float cte = 0.0f;
