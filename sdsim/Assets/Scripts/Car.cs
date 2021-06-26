@@ -44,6 +44,12 @@ public class Car : MonoBehaviour, ICar {
 	//name of the last object we hit.
 	public string last_collision = "none";
 
+	public int leftFrontIndex = -1;
+	public int rightFrontIndex = -1;
+	public int leftRearIndex = -1;
+	public int rightRearIndex = -1;
+
+
 	// Use this for initialization
 	void Awake () 
 	{
@@ -58,9 +64,29 @@ public class Car : MonoBehaviour, ICar {
 		requestSteering = 0f;
 
 		SavePosRot();
+
+		getWheelIndices();
 		
 		// had to disable this because PID max steering was affecting the global max_steering
         // maxSteer = PlayerPrefs.GetFloat("max_steer", 16.0f);
+	}
+
+	public void getWheelIndices()
+	{
+		int i = 0;
+		foreach (WheelCollider wc in wheelColliders)
+		{
+			if (wc.name.Contains("LR"))
+				leftRearIndex = i;
+			else if (wc.name.Contains("RR"))
+				rightRearIndex = i;
+			else if (wc.name.Contains("LF"))
+				leftFrontIndex = i;
+			else if (wc.name.Contains("RF"))
+				rightFrontIndex = i;
+
+			i++;
+		}
 	}
 
 	public void SavePosRot()
@@ -128,6 +154,34 @@ public class Car : MonoBehaviour, ICar {
 		}
 	}
 
+	public double getLRRPM()
+	{
+		return getRPM(leftRearIndex);				
+	}
+
+	public double getRRRPM()
+	{
+		return getRPM(rightRearIndex);				
+	}
+
+	public double getLFRPM()
+	{
+		return getRPM(leftFrontIndex);				
+	}
+
+	public double getRFRPM()
+	{
+		return getRPM(rightFrontIndex);				
+	}
+
+	public double getRPM(int index)
+	{
+		if (index == -1)
+			return -1.0;
+		
+		return wheelColliders[index].rpm;
+	}
+
 	public float GetSteering()
 	{
 		return requestSteering;
@@ -166,6 +220,7 @@ public class Car : MonoBehaviour, ICar {
 	{
 	  return gyro;
   	}
+
 	public float GetOrient ()
 	{
 		Vector3 dir = transform.forward;
@@ -207,7 +262,7 @@ public class Car : MonoBehaviour, ICar {
 	{
 		activity = act;
 	}
-
+	
 	void FixedUpdate()
 	{
 		lastSteer = requestSteering;
@@ -218,7 +273,6 @@ public class Car : MonoBehaviour, ICar {
 		// float deltaSteerAngle = Mathf.Clamp(steerAngle - wheelColliders[2].steerAngle, -SteerSpeed*Time.fixedDeltaTime, SteerSpeed*Time.fixedDeltaTime);
 		float deltaSteerAngle = steerAngle - wheelColliders[2].steerAngle;
         float brake = requestBrake;
-
 
 		//front two tires.
 		wheelColliders[2].steerAngle += deltaSteerAngle;
