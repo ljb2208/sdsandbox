@@ -212,6 +212,17 @@ namespace tk
                 json.AddField("vel_y", velocity.y);
                 json.AddField("vel_z", velocity.z);
 
+                double lr = car.getLRRPM();
+
+                json.AddField("ws_lr", (float)car.getLRRPM());
+                json.AddField("ws_rr", (float)car.getRRRPM());
+                json.AddField("ws_lf", (float)car.getLFRPM());
+                json.AddField("ws_rf", (float)car.getRFRPM());
+
+                json.AddField("orient_x", tm.rotation.x);
+                json.AddField("orient_y", tm.rotation.y);
+                json.AddField("orient_z", tm.rotation.z);
+                json.AddField("orient_w", tm.rotation.w);
 
                 if (pm != null)
                 {

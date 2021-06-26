@@ -146,5 +146,18 @@ public class UnityStandardCarAdapter : MonoBehaviour, ICar {
 		last_collision = col.gameObject.name;
 	}
 
+	public double getLRRPM(){
+		return -1.0;
+	}
+	public double getRRRPM(){
+		return -1.0;
+	}
+	public double getLFRPM(){
+		return -1.0;
+	}
+	public double getRFRPM(){
+		return -1.0;
+	}
+
 	string last_collision = "none";
 }

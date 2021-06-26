@@ -30,6 +30,11 @@ public interface ICar
 
 	float GetHandBrake();
 
+	double getLRRPM();
+	double getRRRPM();
+	double getLFRPM();
+	double getRFRPM();
+
 
 	//query state.
 	Transform GetTransform();
