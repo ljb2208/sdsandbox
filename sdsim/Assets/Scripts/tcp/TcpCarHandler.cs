@@ -137,7 +137,10 @@ namespace tk
             json.AddField("steer", car.GetSteering());
             json.AddField("steering_angle", car.GetSteering() / steer_to_angle);
             json.AddField("throttle", car.GetThrottle());
+            json.AddField("steer", car.GetSteering());
             json.AddField("speed", car.GetVelocity().magnitude);
+
+            Debug.Log("Speed: " +  car.GetVelocity().magnitude);
             json.AddField("image", Convert.ToBase64String(camSensor.GetImageBytes()));
 
             if (camSensorB != null && camSensorB.gameObject.activeInHierarchy)
@@ -216,9 +219,7 @@ namespace tk
                 Vector3 velocity = car.GetVelocity();
                 json.AddField("vel_x", velocity.x);
                 json.AddField("vel_y", velocity.y);
-                json.AddField("vel_z", velocity.z);
-
-                double lr = car.getLRRPM();
+                json.AddField("vel_z", velocity.z);                
 
                 json.AddField("ws_lr", (float)car.getLRRPM());
                 json.AddField("ws_rr", (float)car.getRRRPM());
