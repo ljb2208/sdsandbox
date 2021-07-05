@@ -131,7 +131,10 @@ namespace tk
 
             json.AddField("steering_angle", car.GetSteering() / steer_to_angle);
             json.AddField("throttle", car.GetThrottle());
+            json.AddField("steer", car.GetSteering());
             json.AddField("speed", car.GetVelocity().magnitude);
+
+            Debug.Log("Speed: " +  car.GetVelocity().magnitude);
             json.AddField("image", Convert.ToBase64String(camSensor.GetImageBytes()));
 
             if (camSensorB != null && camSensorB.gameObject.activeInHierarchy)
@@ -212,7 +215,7 @@ namespace tk
                 json.AddField("vel_y", velocity.y);
                 json.AddField("vel_z", velocity.z);
 
-                double lr = car.getLRRPM();
+                Debug.Log("LR WS: " + car.getLRRPM());
 
                 json.AddField("ws_lr", (float)car.getLRRPM());
                 json.AddField("ws_rr", (float)car.getRRRPM());

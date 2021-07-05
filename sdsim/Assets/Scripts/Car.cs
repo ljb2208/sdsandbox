@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using System;
 using System.Collections;
 
 
@@ -34,6 +35,8 @@ public class Car : MonoBehaviour, ICar {
 	public float lastSteer = 0.0f;
 	public float lastAccel = 0.0f;
 
+	public float wheelCirc = 0.0f;
+
 	//when the car is doing multiple things, we sometimes want to sort out parts of the training
 	//use this label to pull partial training samples from a run 
 	public string activity = "keep_lane";
@@ -66,6 +69,7 @@ public class Car : MonoBehaviour, ICar {
 		SavePosRot();
 
 		getWheelIndices();
+		getWheelCircumference();
 		
 		// had to disable this because PID max steering was affecting the global max_steering
         // maxSteer = PlayerPrefs.GetFloat("max_steer", 16.0f);
@@ -76,17 +80,23 @@ public class Car : MonoBehaviour, ICar {
 		int i = 0;
 		foreach (WheelCollider wc in wheelColliders)
 		{
-			if (wc.name.Contains("LR"))
+			Debug.Log("WC: " + wc.name);
+			if (wc.name.Contains("RL"))
 				leftRearIndex = i;
 			else if (wc.name.Contains("RR"))
 				rightRearIndex = i;
-			else if (wc.name.Contains("LF"))
+			else if (wc.name.Contains("FL"))
 				leftFrontIndex = i;
-			else if (wc.name.Contains("RF"))
+			else if (wc.name.Contains("FR"))
 				rightFrontIndex = i;
 
 			i++;
 		}
+	}
+
+	public void getWheelCircumference()
+	{
+		wheelCirc = (float)(wheelColliders[0].radius * 2.0 * Math.PI / 60.0);
 	}
 
 	public void SavePosRot()
@@ -156,28 +166,28 @@ public class Car : MonoBehaviour, ICar {
 
 	public double getLRRPM()
 	{
-		return getRPM(leftRearIndex);				
+		return getRPM(leftRearIndex) * wheelCirc;				
 	}
 
 	public double getRRRPM()
 	{
-		return getRPM(rightRearIndex);				
+		return getRPM(rightRearIndex) * wheelCirc;				
 	}
 
 	public double getLFRPM()
 	{
-		return getRPM(leftFrontIndex);				
+		return getRPM(leftFrontIndex) * wheelCirc;				
 	}
 
 	public double getRFRPM()
 	{
-		return getRPM(rightFrontIndex);				
+		return getRPM(rightFrontIndex) * wheelCirc;				
 	}
 
 	public double getRPM(int index)
 	{
 		if (index == -1)
-			return -1.0;
+			return 0.0;
 		
 		return wheelColliders[index].rpm;
 	}
