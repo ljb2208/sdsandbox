@@ -125,11 +125,22 @@ namespace tk
 
         public void LoadScene(string scene_name)
         {
+            Debug.Log("LoadScene" + scene_name);
+            Debug.Log("Scenes");
+            
+            foreach (string sn in GlobalState.sceneNames)
+            {
+                Debug.Log(sn);
+            }
             // check wether the scene_name is in the scene_names list, if so, load it
             if (Array.Exists(GlobalState.sceneNames, element => element == scene_name))
             {
                 loader.LoadScene(scene_name);
                 Debug.Log("loaded scene");
+            }
+            else
+            {
+                Debug.Log("Scene not loaded");
             }
         }
 

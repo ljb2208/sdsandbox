@@ -72,7 +72,12 @@ namespace tk
             client = _client;
 
             if (client == null)
+            {
+                Debug.Log("No client");
                 return;
+            }
+
+            Debug.Log("Register Dispatcher");
 
             client.dispatchInMainThread = false; //too slow to wait.
             client.dispatcher.Register("get_protocol_version", new tk.Delegates.OnMsgRecv(OnProtocolVersion));
@@ -129,6 +134,7 @@ namespace tk
             JSONObject json = new JSONObject(JSONObject.Type.OBJECT);
             json.AddField("msg_type", "telemetry");
 
+            json.AddField("steer", car.GetSteering());
             json.AddField("steering_angle", car.GetSteering() / steer_to_angle);
             json.AddField("throttle", car.GetThrottle());
             json.AddField("speed", car.GetVelocity().magnitude);
@@ -299,15 +305,21 @@ namespace tk
         {
             try
             {
-                ai_steering = float.Parse(json["steering"].str, CultureInfo.InvariantCulture.NumberFormat);
-                ai_throttle = float.Parse(json["throttle"].str, CultureInfo.InvariantCulture.NumberFormat);
-                ai_brake = float.Parse(json["brake"].str, CultureInfo.InvariantCulture.NumberFormat);
+                // Debug.Log("Controls received:" + json.ToString());
+                // Debug.Log("steer: " + json["steering"].ToString());
+                // Debug.Log("throttle: " + json["throttle"].ToString());
+                // Debug.Log("brake: " + json["brake"].ToString());
+                ai_steering = float.Parse(json["steering"].ToString(), CultureInfo.InvariantCulture.NumberFormat);
+                ai_throttle = float.Parse(json["throttle"].ToString(), CultureInfo.InvariantCulture.NumberFormat);
+                ai_brake = float.Parse(json["brake"].ToString(), CultureInfo.InvariantCulture.NumberFormat);
 
                 ai_steering = clamp(ai_steering, -1.0f, 1.0f);
                 ai_throttle = clamp(ai_throttle, -1.0f, 1.0f);
                 ai_brake = clamp(ai_brake, 0.0f, 1.0f);
 
-                ai_steering *= steer_to_angle;
+                ai_steering *= steer_to_angle;   
+
+                // Debug.Log("Controls received:" + ai_steering + ":" + ai_throttle);
 
                 car.RequestSteering(ai_steering);
                 car.RequestThrottle(ai_throttle);

@@ -76,13 +76,13 @@ public class Car : MonoBehaviour, ICar {
 		int i = 0;
 		foreach (WheelCollider wc in wheelColliders)
 		{
-			if (wc.name.Contains("LR"))
+			if (wc.name.Contains("RL"))
 				leftRearIndex = i;
 			else if (wc.name.Contains("RR"))
 				rightRearIndex = i;
-			else if (wc.name.Contains("LF"))
+			else if (wc.name.Contains("FL"))
 				leftFrontIndex = i;
-			else if (wc.name.Contains("RF"))
+			else if (wc.name.Contains("FR"))
 				rightFrontIndex = i;
 
 			i++;
@@ -177,7 +177,7 @@ public class Car : MonoBehaviour, ICar {
 	public double getRPM(int index)
 	{
 		if (index == -1)
-			return -1.0;
+			return 0.0;
 		
 		return wheelColliders[index].rpm;
 	}
